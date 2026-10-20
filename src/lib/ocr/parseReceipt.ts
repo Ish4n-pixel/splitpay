@@ -28,8 +28,12 @@ export interface ParsedReceipt {
 }
 
 /**
- * Parses raw text extracted from restaurant receipts (via OCR or clipboard)
- * into structured line items, taxes, service charges, discounts, and total.
+ * Robust restaurant bill parser.
+ * Extracts ONLY essential details:
+ * 1. Food and drink line items (Name, Quantity, Price)
+ * 2. Applicable taxes, service charges, discounts, and tips
+ * 3. Grand total
+ * Strictly filters out noise (FSSAI, GSTIN, addresses, dates, table numbers, cashier names, etc.).
  */
 export function parseReceipt(rawText: string): ParsedReceipt {
   const lines = rawText
@@ -41,45 +45,98 @@ export function parseReceipt(rawText: string): ParsedReceipt {
   const charges: ParsedCharge[] = [];
   let printedTotalPaise = 0;
 
-  // Patterns for header / footer metadata to ignore as items
+  // Header / footer / metadata patterns to strictly ignore
   const ignorePatterns = [
     /tax\s*invoice/i,
+    /retail\s*invoice/i,
+    /cash\s*memo/i,
     /bill\s*no/i,
     /table\s*no/i,
+    /kot\s*no/i,
+    /token\s*no/i,
+    /order\s*#/i,
     /date\s*[:\-]/i,
     /time\s*[:\-]/i,
     /gstin/i,
     /fssai/i,
+    /cin\s*[:\-]/i,
+    /steward/i,
+    /waiter/i,
+    /captain/i,
+    /cashier/i,
+    /server\s*[:\-]/i,
+    /pax\s*[:\-]/i,
     /ph(?:one)?\s*[:\-]/i,
+    /tel\s*[:\-]/i,
+    /mob(?:ile)?\s*[:\-]/i,
     /thank\s*you/i,
     /welcome/i,
-    /cashier/i,
-    /order\s*#/i,
-    /pos\s*terminal/i,
     /visit\s*again/i,
+    /feedback/i,
+    /pos\s*terminal/i,
+    /wifi\s*(?:pass|pwd)?/i,
+    /powered\s*by/i,
+    /hsn\s*code/i,
+    /sac\s*code/i,
+    /^s\.?\s*no/i,
+    /item\s+(?:name|desc)/i,
+    /qty\s+rate/i,
+    /particulars/i,
   ];
-
-  // Regex to match lines ending in an amount (e.g. "Item Name 240.00", "2 x Pizza 500", "Salad  120")
-  // Handles commas in thousands: 1,200.00
-  const lineRegex = /^(?:(\d+)\s*[xX*]?\s+)?(.+?)\s+([+-]?\s*(?:₹|rs\.?|inr)?\s*\d{1,5}(?:,\d{3})*(?:\.\d{1,2})?)$/i;
 
   let idCounter = 1;
 
-  for (const line of lines) {
+  for (let idx = 0; idx < lines.length; idx++) {
+    let line = lines[idx];
+
     // Check if line should be ignored
     if (ignorePatterns.some((pattern) => pattern.test(line))) {
       continue;
     }
 
-    const match = line.match(lineRegex);
-    if (!match) continue;
+    // Strip leading serial numbers like "1. ", "01. ", "1) ", "1- "
+    line = line.replace(/^\d{1,2}[.)\-]\s*/, '').trim();
 
-    const rawQty = match[1];
-    let itemName = match[2].trim();
-    const rawAmount = match[3];
+    // Pattern 1: Multi-column row: "Dish Name [Qty] [Rate] [Total Amount]"
+    // e.g. "Paneer Tikka 2 240.00 480.00"
+    const colMatch = line.match(/^(.+?)\s+(\d{1,3})\s+(?:[+-]?\s*(?:₹|rs\.?|inr)?\s*\d{1,5}(?:,\d{3})*(?:\.\d{1,2})?)\s+([+-]?\s*(?:₹|rs\.?|inr)?\s*\d{1,5}(?:,\d{3})*(?:\.\d{1,2})?)$/i);
 
-    // Clean up item name (remove leading/trailing symbols)
-    itemName = itemName.replace(/^[-*•\s]+|[-*•\s]+$/g, '').trim();
+    // Pattern 2: Standard single-amount line: "[Qty x] Dish Name Amount"
+    // e.g. "2 x Garlic Naan 180.00" or "Paneer Butter Masala 420.00"
+    const standardMatch = line.match(/^(?:(\d+)\s*[xX*]?\s+)?(.+?)\s+([+-]?\s*(?:₹|rs\.?|inr)?\s*\d{1,5}(?:,\d{3})*(?:\.\d{1,2})?)$/i);
+
+    let rawQty: string | undefined = undefined;
+    let itemName = '';
+    let rawAmount = '';
+
+    if (colMatch) {
+      itemName = colMatch[1].trim();
+      rawQty = colMatch[2];
+      rawAmount = colMatch[3];
+    } else if (standardMatch) {
+      rawQty = standardMatch[1];
+      itemName = standardMatch[2].trim();
+      rawAmount = standardMatch[3];
+    } else {
+      // Pattern 3: Multi-line item
+      // Line N: "Butter Chicken Masala"
+      // Line N+1: "1 x 450.00" or "450.00"
+      if (idx + 1 < lines.length) {
+        const nextLine = lines[idx + 1].trim();
+        const nextMatch = nextLine.match(/^(?:(\d+)\s*[xX*]?\s+)?([+-]?\s*(?:₹|rs\.?|inr)?\s*\d{1,5}(?:,\d{3})*(?:\.\d{1,2})?)$/i);
+        if (nextMatch && !/\d{2,}/.test(line)) {
+          rawQty = nextMatch[1];
+          itemName = line;
+          rawAmount = nextMatch[2];
+          idx++; // consume the paired amount line
+        }
+      }
+    }
+
+    if (!itemName || !rawAmount) continue;
+
+    // Clean up item name (remove leading/trailing symbols and artifacts)
+    itemName = itemName.replace(/^[-*•:\s]+|[-*•:\s]+$/g, '').trim();
     if (!itemName || itemName.length < 2) continue;
 
     const amountPaise = toPaise(rawAmount);
@@ -87,7 +144,7 @@ export function parseReceipt(rawText: string): ParsedReceipt {
 
     const lowerName = itemName.toLowerCase();
 
-    // Check for Grand Total / Net Total
+    // 1. Check for Grand Total / Net Total
     if (
       /(?:grand\s*total|net\s*amount|total\s*amount|amount\s*due|bill\s*total|^total$)/i.test(
         lowerName
@@ -99,15 +156,13 @@ export function parseReceipt(rawText: string): ParsedReceipt {
       continue;
     }
 
-    // Check for Subtotal
-    if (/(?:sub\s*total|subtotal|food\s*total)/i.test(lowerName)) {
-      // Subtotal line, don't treat as an individual dish
+    // 2. Check for Subtotal
+    if (/(?:sub\s*total|subtotal|food\s*total|gross\s*total)/i.test(lowerName)) {
       continue;
     }
 
-    // Check for Taxes (CGST, SGST, IGST, VAT, GST)
+    // 3. Check for Taxes (CGST, SGST, IGST, VAT, GST)
     if (/(?:cgst|sgst|igst|gst|vat|service\s*tax)/i.test(lowerName)) {
-      // Check if percentage is mentioned (e.g. "CGST @ 2.5%" or "GST 5%")
       const pctMatch = lowerName.match(/(\d+(?:\.\d+)?)\s*%/);
       const pctValue = pctMatch ? parseFloat(pctMatch[1]) : 0;
 
@@ -122,8 +177,8 @@ export function parseReceipt(rawText: string): ParsedReceipt {
       continue;
     }
 
-    // Check for Service Charge
-    if (/(?:service\s*charge|svc\s*chg|service\s*fee)/i.test(lowerName)) {
+    // 4. Check for Service Charge / Packaging Fee
+    if (/(?:service\s*charge|svc\s*chg|service\s*fee|packaging)/i.test(lowerName)) {
       const pctMatch = lowerName.match(/(\d+(?:\.\d+)?)\s*%/);
       const pctValue = pctMatch ? parseFloat(pctMatch[1]) : 0;
 
@@ -138,7 +193,7 @@ export function parseReceipt(rawText: string): ParsedReceipt {
       continue;
     }
 
-    // Check for Discounts
+    // 5. Check for Discounts / Round off
     if (/(?:discount|promo|off|zomato|swiggy|voucher)/i.test(lowerName)) {
       charges.push({
         id: `charge_${idCounter++}`,
@@ -151,7 +206,20 @@ export function parseReceipt(rawText: string): ParsedReceipt {
       continue;
     }
 
-    // Check for Tip
+    if (/round\s*off/i.test(lowerName)) {
+      // Round off can be positive or negative
+      charges.push({
+        id: `charge_${idCounter++}`,
+        kind: 'discount',
+        label: 'Round Off',
+        basis: 'fixed',
+        value: Math.abs(amountPaise),
+        amountPaise: amountPaise,
+      });
+      continue;
+    }
+
+    // 6. Check for Tip
     if (/^tip$/i.test(lowerName) || /gratuity/i.test(lowerName)) {
       charges.push({
         id: `charge_${idCounter++}`,
@@ -164,21 +232,22 @@ export function parseReceipt(rawText: string): ParsedReceipt {
       continue;
     }
 
-    // Otherwise, it is a line-item dish
-    const quantity = rawQty ? parseInt(rawQty, 10) : 1;
+    // 7. Legitimate Line-Item Dish
+    const quantity = rawQty ? Math.max(1, parseInt(rawQty, 10)) : 1;
     const totalPaise = Math.abs(amountPaise);
-    const unitPricePaise = Math.round(totalPaise / (quantity > 0 ? quantity : 1));
+    const unitPricePaise = Math.round(totalPaise / quantity);
 
     items.push({
       id: `item_${idCounter++}`,
       name: itemName,
-      quantity: quantity > 0 ? quantity : 1,
+      quantity,
       totalPaise,
       unitPricePaise,
+      rawPrice: (unitPricePaise / 100).toFixed(2),
     });
   }
 
-  // If printed total wasn't explicitly found, estimate it from items + charges
+  // Calculate printed total if not found explicitly
   if (printedTotalPaise === 0 && items.length > 0) {
     const sumItems = items.reduce((acc, i) => acc + i.totalPaise, 0);
     const sumCharges = charges.reduce((acc, c) => acc + c.amountPaise, 0);

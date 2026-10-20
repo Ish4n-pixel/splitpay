@@ -59,4 +59,49 @@ describe('parseReceipt', () => {
     // Verify printed total
     expect(parsed.printedTotalPaise).toBe(138996);
   });
+
+  it('parses columnar Indian restaurant receipts with Serial No, Qty, Rate, and Amount', () => {
+    const columnarReceipt = `
+      THE ROYAL SPICE RESTAURANT
+      Connaught Place, New Delhi
+      GSTIN: 07AAAAA1234A1Z5  FSSAI: 12345678901234
+      Table: T-4  Order: #892  Date: 20/10/2026
+      -----------------------------------------------
+      S.No  Item Name          Qty   Rate    Amount
+      1.    Paneer Tikka         2  240.00   480.00
+      2.    Butter Chicken       1  450.00   450.00
+      3.    Garlic Naan          3   60.00   180.00
+      -----------------------------------------------
+      Sub Total: 1110.00
+      CGST 2.5%: 27.75
+      SGST 2.5%: 27.75
+      Round Off: 0.50
+      Grand Total: 1166.00
+      Thank you! Visit Again
+    `;
+
+    const parsed = parseReceipt(columnarReceipt);
+
+    expect(parsed.items.length).toBe(3);
+    expect(parsed.items[0]).toMatchObject({
+      name: 'Paneer Tikka',
+      quantity: 2,
+      totalPaise: 48000,
+      unitPricePaise: 24000,
+    });
+    expect(parsed.items[1]).toMatchObject({
+      name: 'Butter Chicken',
+      quantity: 1,
+      totalPaise: 45000,
+      unitPricePaise: 45000,
+    });
+    expect(parsed.items[2]).toMatchObject({
+      name: 'Garlic Naan',
+      quantity: 3,
+      totalPaise: 18000,
+      unitPricePaise: 6000,
+    });
+
+    expect(parsed.printedTotalPaise).toBe(116600);
+  });
 });

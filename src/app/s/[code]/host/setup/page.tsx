@@ -15,9 +15,11 @@ import {
   Receipt,
   RotateCcw,
   Key,
+  FileText,
 } from 'lucide-react';
 import { parseReceipt, ParsedItem, ParsedCharge } from '@/lib/ocr/parseReceipt';
 import { recognizeReceipt, OcrProgress } from '@/lib/ocr/recognize';
+import { preprocessReceiptImage } from '@/lib/ocr/preprocess';
 import { formatINR, toPaise, toRupees } from '@/lib/money';
 import { ChargeKind, ChargeBasis } from '@/lib/split/engine';
 
@@ -35,6 +37,9 @@ export default function HostBillSetupPage() {
   const [ocrError, setOcrError] = useState<string | null>(null);
   const [geminiApiKey, setGeminiApiKey] = useState<string>('');
   const [showKeyModal, setShowKeyModal] = useState(false);
+  const [hasServerKey, setHasServerKey] = useState<boolean | null>(null);
+  const [showPasteModal, setShowPasteModal] = useState(false);
+  const [pasteText, setPasteText] = useState('');
 
   // Review table items
   const [items, setItems] = useState<ParsedItem[]>([]);
@@ -55,6 +60,16 @@ export default function HostBillSetupPage() {
     if (savedGeminiKey) {
       setGeminiApiKey(savedGeminiKey);
     }
+
+    // Check if server has Gemini API Key configured
+    fetch('/api/receipt/extract')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data && typeof data.hasServerKey === 'boolean') {
+          setHasServerKey(data.hasServerKey);
+        }
+      })
+      .catch(() => setHasServerKey(false));
 
     // Preload existing items if editing an existing bill
     if (code) {
@@ -100,50 +115,29 @@ export default function HostBillSetupPage() {
     }
   }, [code]);
 
-  // Demo receipt pre-filler for rapid demonstration
-  const handleLoadDemoReceipt = () => {
-    const demoItems: ParsedItem[] = [
-      { id: `demo_1`, name: 'Paneer Butter Masala', quantity: 1, unitPricePaise: 42000, totalPaise: 42000, rawPrice: '420.00' },
-      { id: `demo_2`, name: 'Garlic Naan (Basket)', quantity: 2, unitPricePaise: 9000, totalPaise: 18000, rawPrice: '90.00' },
-      { id: `demo_3`, name: 'Dal Makhani Special', quantity: 1, unitPricePaise: 35000, totalPaise: 35000, rawPrice: '350.00' },
-      { id: `demo_4`, name: 'Virgin Mojito Cocktails', quantity: 2, unitPricePaise: 16000, totalPaise: 32000, rawPrice: '160.00' },
-      { id: `demo_5`, name: 'Gulab Jamun (Dessert)', quantity: 1, unitPricePaise: 15000, totalPaise: 15000, rawPrice: '150.00' },
-    ];
-
-    const demoCharges: ParsedCharge[] = [
-      { id: `demo_c1`, kind: 'service', label: 'Service Charge 10%', basis: 'percent', value: 10, amountPaise: 14200, rawValue: '10' },
-      { id: `demo_c2`, kind: 'tax', label: 'GST 5%', basis: 'percent', value: 5, amountPaise: 7100, rawValue: '5' },
-      { id: `demo_c3`, kind: 'discount', label: 'Zomato Gold Discount', basis: 'fixed', value: 10000, amountPaise: -10000, rawValue: '100.00' },
-    ];
-
-    setItems(demoItems);
-    setCharges(demoCharges);
-    // Items subtotal: 1420.00 + Service 142.00 + GST 71.00 - Discount 100.00 = 1533.00
-    setPrintedTotalRupees('1533.00');
-    setOcrError(null);
-  };
-
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     setOcrLoading(true);
     setOcrError(null);
-    setOcrProgress({ status: '✨ Initializing Gemini AI Vision...', progress: 0.15 });
+    setOcrProgress({ status: 'Optimizing receipt photo (downscaling & contrast boost)...', progress: 0.15 });
 
     try {
-      // 1. Attempt smart extraction via Gemini 1.5 Flash API
-      const formData = new FormData();
-      formData.append('file', file);
-      if (geminiApiKey) {
-        formData.append('apiKey', geminiApiKey);
-      }
+      // 1. Preprocess and downscale image on client canvas (shrinks 10MB phone camera photos to ~300KB)
+      const preprocessed = await preprocessReceiptImage(file);
 
-      setOcrProgress({ status: '✨ Extracting dishes, prices & GST with Gemini 1.5 Flash...', progress: 0.45 });
+      // 2. Attempt smart extraction via Gemini 1.5 Flash API
+      setOcrProgress({ status: '✨ Extracting dishes, quantities & GST with Gemini 1.5 Flash...', progress: 0.45 });
 
       const res = await fetch('/api/receipt/extract', {
         method: 'POST',
-        body: formData,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          imageBase64: preprocessed.base64,
+          mimeType: 'image/jpeg',
+          apiKey: geminiApiKey || undefined,
+        }),
       });
 
       const resData = await res.json();
@@ -165,20 +159,27 @@ export default function HostBillSetupPage() {
         if (parsed.printedTotalPaise > 0) {
           setPrintedTotalRupees((parsed.printedTotalPaise / 100).toFixed(2));
         }
-        setOcrProgress({ status: '✨ Successfully parsed with Gemini AI!', progress: 1.0 });
+        setOcrProgress({ status: '✨ Successfully extracted with Gemini AI!', progress: 1.0 });
         return;
       }
 
-      // 2. If Gemini returned error or not configured, fall back to client-side Tesseract OCR
-      console.warn('Gemini extraction unavailable, falling back to local OCR:', resData?.message || resData?.error);
-      setOcrProgress({ status: 'Scanning receipt lines with local OCR...', progress: 0.6 });
+      // If server returned GEMINI_API_KEY_MISSING, open the key dialog
+      if (resData?.error === 'GEMINI_API_KEY_MISSING') {
+        setShowKeyModal(true);
+        setOcrError('A Google Gemini API key is required for AI receipt scanning. Paste your free key below or enter dishes manually.');
+        return;
+      }
 
-      const text = await recognizeReceipt(file, (p) => setOcrProgress(p));
+      // 3. Fallback to client-side local OCR
+      console.warn('Gemini extraction unavailable, falling back to local OCR:', resData?.message || resData?.error);
+      setOcrProgress({ status: 'Scanning receipt lines with local OCR...', progress: 0.65 });
+
+      const text = await recognizeReceipt(preprocessed.blob, (p) => setOcrProgress(p));
       const parsed = parseReceipt(text);
 
       if (parsed.items.length === 0) {
         setOcrError(
-          resData?.message || 'No items could be clearly identified. You can add items manually below or try another image.'
+          resData?.message || 'No dishes could be clearly identified. You can paste receipt text or add items manually below.'
         );
       } else {
         setItems(
@@ -199,34 +200,38 @@ export default function HostBillSetupPage() {
       }
     } catch (err: any) {
       console.error('OCR Error:', err);
-      try {
-        setOcrProgress({ status: 'Falling back to local OCR...', progress: 0.6 });
-        const text = await recognizeReceipt(file, (p) => setOcrProgress(p));
-        const parsed = parseReceipt(text);
-        if (parsed.items.length > 0) {
-          setItems(
-            parsed.items.map((i) => ({
-              ...i,
-              rawPrice: (i.unitPricePaise / 100).toFixed(2),
-            }))
-          );
-          setCharges(
-            parsed.charges.map((c) => ({
-              ...c,
-              rawValue: c.basis === 'percent' ? String(c.value) : (c.value / 100).toFixed(2),
-            }))
-          );
-          if (parsed.printedTotalPaise > 0) {
-            setPrintedTotalRupees((parsed.printedTotalPaise / 100).toFixed(2));
-          }
-          return;
-        }
-      } catch {}
       setOcrError(err.message || 'Failed to read receipt image');
     } finally {
       setOcrLoading(false);
       setTimeout(() => setOcrProgress(null), 1200);
     }
+  };
+
+  const handlePasteExtract = () => {
+    if (!pasteText.trim()) return;
+    const parsed = parseReceipt(pasteText);
+    if (parsed.items.length === 0) {
+      setOcrError('No dishes could be recognized in the pasted text. Please verify the lines or enter items manually below.');
+      return;
+    }
+    setItems(
+      parsed.items.map((i) => ({
+        ...i,
+        rawPrice: (i.unitPricePaise / 100).toFixed(2),
+      }))
+    );
+    setCharges(
+      parsed.charges.map((c) => ({
+        ...c,
+        rawValue: c.basis === 'percent' ? String(c.value) : (c.value / 100).toFixed(2),
+      }))
+    );
+    if (parsed.printedTotalPaise > 0) {
+      setPrintedTotalRupees((parsed.printedTotalPaise / 100).toFixed(2));
+    }
+    setShowPasteModal(false);
+    setPasteText('');
+    setOcrError(null);
   };
 
   // Item modification helpers
@@ -389,23 +394,37 @@ export default function HostBillSetupPage() {
             Table Code: <span className="font-mono font-bold text-slate-800">{code}</span>
           </p>
         </div>
-
-        {/* Quick Demo Button */}
-        <button
-          type="button"
-          onClick={handleLoadDemoReceipt}
-          className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold bg-amber-50 text-amber-900 border border-amber-200/80 hover:bg-amber-100 transition-colors shadow-sm self-start sm:self-auto"
-        >
-          <Sparkles className="w-4 h-4 text-amber-600" />
-          Load Sample Indian Receipt
-        </button>
       </div>
 
-      {/* Input Options (OCR vs Manual) */}
+      {/* Input Options (OCR vs Paste vs Manual) */}
       <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-100 shadow-sm space-y-6">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {/* Gemini Key Missing Notice Banner */}
+        {hasServerKey === false && !geminiApiKey && (
+          <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 text-amber-950 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
+            <div className="flex items-start gap-2.5">
+              <Sparkles className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+              <div>
+                <span className="font-bold text-xs text-amber-900 block">
+                  Enable High-Accuracy AI Receipt Scanning
+                </span>
+                <span className="text-[11px] text-amber-700">
+                  Paper bills have shadows and faded ink. Enter a free Gemini API key to scan receipts with 99% accuracy.
+                </span>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowKeyModal(true)}
+              className="px-3.5 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-sm transition-colors whitespace-nowrap self-start sm:self-auto"
+            >
+              + Add Free Gemini Key
+            </button>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {/* Option A: Camera / Upload */}
-          <label className="relative flex flex-col items-center justify-center p-6 border-2 border-dashed border-emerald-300 bg-emerald-50/40 rounded-2xl cursor-pointer hover:bg-emerald-50/70 transition-colors group text-center">
+          <label className="relative flex flex-col items-center justify-center p-5 border-2 border-dashed border-emerald-300 bg-emerald-50/40 rounded-2xl cursor-pointer hover:bg-emerald-50/70 transition-colors group text-center">
             <input
               type="file"
               accept="image/*"
@@ -414,36 +433,52 @@ export default function HostBillSetupPage() {
               disabled={ocrLoading}
               className="sr-only"
             />
-            <div className="h-12 w-12 rounded-2xl bg-emerald-500 text-white flex items-center justify-center shadow-md shadow-emerald-500/20 group-hover:scale-105 transition-transform mb-3">
-              <Camera className="w-6 h-6" />
+            <div className="h-11 w-11 rounded-2xl bg-emerald-500 text-white flex items-center justify-center shadow-md shadow-emerald-500/20 group-hover:scale-105 transition-transform mb-2.5">
+              <Camera className="w-5 h-5" />
             </div>
             <div className="flex items-center gap-1.5 justify-center">
-              <span className="font-bold text-sm text-slate-900">
-                Snap Receipt Photo or Upload
+              <span className="font-bold text-xs sm:text-sm text-slate-900">
+                Snap or Upload
               </span>
-              <span className="text-[10px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-300">
-                ✨ Gemini AI
+              <span className="text-[9px] font-extrabold uppercase px-1 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-300">
+                AI Vision
               </span>
             </div>
-            <span className="text-xs text-slate-500 mt-1">
-              Extracts dishes, quantities & GST with Gemini 1.5 Flash
+            <span className="text-[11px] text-slate-500 mt-1">
+              Extracts dishes, quantities & GST with Gemini AI
             </span>
           </label>
 
-          {/* Option B: Manual */}
+          {/* Option B: Paste Receipt Text */}
+          <div
+            onClick={() => setShowPasteModal(true)}
+            className="flex flex-col items-center justify-center p-5 border-2 border-dashed border-slate-200 bg-slate-50/50 rounded-2xl cursor-pointer hover:bg-slate-100/60 transition-colors text-center group"
+          >
+            <div className="h-11 w-11 rounded-2xl bg-slate-200 text-slate-700 flex items-center justify-center mb-2.5 group-hover:scale-105 transition-transform">
+              <FileText className="w-5 h-5" />
+            </div>
+            <span className="font-bold text-xs sm:text-sm text-slate-900">
+              Paste Bill Text
+            </span>
+            <span className="text-[11px] text-slate-500 mt-1">
+              Paste from SMS, WhatsApp, Swiggy, or e-bill
+            </span>
+          </div>
+
+          {/* Option C: Manual Entry */}
           <div
             onClick={() => {
               if (items.length === 0) addItem();
             }}
-            className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-slate-200 bg-slate-50/50 rounded-2xl cursor-pointer hover:bg-slate-100/60 transition-colors text-center"
+            className="flex flex-col items-center justify-center p-5 border-2 border-dashed border-slate-200 bg-slate-50/50 rounded-2xl cursor-pointer hover:bg-slate-100/60 transition-colors text-center group"
           >
-            <div className="h-12 w-12 rounded-2xl bg-slate-200 text-slate-700 flex items-center justify-center mb-3">
-              <Receipt className="w-6 h-6" />
+            <div className="h-11 w-11 rounded-2xl bg-slate-200 text-slate-700 flex items-center justify-center mb-2.5 group-hover:scale-105 transition-transform">
+              <Receipt className="w-5 h-5" />
             </div>
-            <span className="font-bold text-sm text-slate-900">
+            <span className="font-bold text-xs sm:text-sm text-slate-900">
               Manual Entry
             </span>
-            <span className="text-xs text-slate-500 mt-1">
+            <span className="text-[11px] text-slate-500 mt-1">
               Add individual dishes and prices row by row below
             </span>
           </div>
@@ -453,7 +488,7 @@ export default function HostBillSetupPage() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between text-xs text-slate-500 gap-2 px-1">
           <span className="flex items-center gap-1.5">
             <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
-            <span>Smart Vision: <strong>Gemini 1.5 Flash</strong> (with offline fallback)</span>
+            <span>AI Receipt Engine: <strong>Gemini 1.5 Flash</strong> {hasServerKey || geminiApiKey ? '✓ Active' : '(Fallback Active)'}</span>
           </span>
           <button
             type="button"
@@ -882,6 +917,57 @@ export default function HostBillSetupPage() {
                 className="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition-colors"
               >
                 Save Key
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Paste Receipt Text Modal */}
+      {showPasteModal && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl border border-slate-100 space-y-4">
+            <div className="space-y-1">
+              <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                <FileText className="w-4 h-4 text-emerald-600" />
+                Paste Receipt Text
+              </h3>
+              <p className="text-xs text-slate-500">
+                Paste receipt lines from WhatsApp, SMS, Swiggy, Zomato, or an electronic invoice. SplitPay will extract only the dishes, quantities, and prices.
+              </p>
+            </div>
+
+            <textarea
+              rows={8}
+              placeholder={`Paste receipt text here, e.g.:
+1 Paneer Tikka 240.00
+2 Garlic Naan 180.00
+Dal Makhani 350.00
+GST 5% 38.50
+Grand Total 808.50`}
+              value={pasteText}
+              onChange={(e) => setPasteText(e.target.value)}
+              className="w-full p-3.5 rounded-xl border border-slate-200 text-xs font-mono text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50/50"
+            />
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowPasteModal(false);
+                  setPasteText('');
+                }}
+                className="px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handlePasteExtract}
+                disabled={!pasteText.trim()}
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition-colors disabled:opacity-50"
+              >
+                Extract Dishes
               </button>
             </div>
           </div>
