@@ -941,7 +941,7 @@ export default function HostDashboardPage() {
                 type="text"
                 value={chargeLabel}
                 onChange={(e) => setChargeLabel(e.target.value)}
-                placeholder="e.g. GST 5%, Service Charge 10%"
+                placeholder="Fee or tax name"
                 required
                 className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-1 focus:ring-emerald-500"
               />
@@ -999,7 +999,7 @@ export default function HostDashboardPage() {
                   step={chargeBasis === 'percent' ? '0.1' : '0.01'}
                   value={chargeValueStr}
                   onChange={(e) => setChargeValueStr(e.target.value)}
-                  placeholder={chargeBasis === 'percent' ? 'e.g. 5' : 'e.g. 150.00'}
+                  placeholder={chargeBasis === 'percent' ? '5' : '150.00'}
                   required
                   autoFocus
                   className="w-full pl-3 pr-8 py-2 rounded-xl border border-slate-200 text-sm font-mono font-bold text-slate-900 focus:outline-none focus:ring-1 focus:ring-emerald-500"

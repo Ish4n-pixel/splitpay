@@ -29,7 +29,7 @@ export default function HomePage() {
       return;
     }
     if (!hostUpiVpa.trim() || !hostUpiVpa.includes('@')) {
-      setCreateError('Please enter a valid UPI ID (e.g. rohit@okhdfcbank)');
+      setCreateError('Please enter a valid UPI ID (name@bank)');
       return;
     }
 
@@ -169,7 +169,7 @@ export default function HomePage() {
               </label>
               <input
                 type="text"
-                placeholder="e.g. Ishan Gupta"
+                placeholder="Your name"
                 value={hostName}
                 onChange={(e) => setHostName(e.target.value)}
                 required
@@ -183,7 +183,7 @@ export default function HomePage() {
               </label>
               <input
                 type="text"
-                placeholder="e.g. ishan@okhdfcbank or 9876543210@paytm"
+                placeholder="UPI ID (VPA) or phone@upi"
                 value={hostUpiVpa}
                 onChange={(e) => setHostUpiVpa(e.target.value)}
                 required
@@ -200,7 +200,7 @@ export default function HomePage() {
               </label>
               <input
                 type="text"
-                placeholder="e.g. Friday Team Dinner"
+                placeholder="Table or occasion name"
                 value={tableTitle}
                 onChange={(e) => setTableTitle(e.target.value)}
                 className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
@@ -279,7 +279,7 @@ export default function HomePage() {
               <input
                 type="text"
                 maxLength={6}
-                placeholder="e.g. SPLIT9"
+                placeholder="6-character code"
                 value={joinCode}
                 onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
                 required
@@ -293,7 +293,7 @@ export default function HomePage() {
               </label>
               <input
                 type="text"
-                placeholder="e.g. Priya"
+                placeholder="Your name"
                 value={guestName}
                 onChange={(e) => setGuestName(e.target.value)}
                 required

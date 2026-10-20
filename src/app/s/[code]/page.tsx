@@ -129,7 +129,7 @@ export default function GuestDinerPage() {
             </label>
             <input
               type="text"
-              placeholder="e.g. Rahul, Priya, Ananya"
+              placeholder="Your name"
               value={joinName}
               onChange={(e) => setJoinName(e.target.value)}
               required
@@ -384,7 +384,7 @@ export default function GuestDinerPage() {
             Select Dishes You Ate
           </h2>
           <p className="text-xs text-slate-500">
-            Tap a dish to claim what you ate. If an item has multiple portions (e.g. 3× Chicken Tikka), you can select the exact quantity you had.
+            Tap a dish to claim what you ate. If an item has multiple portions, you can select the exact quantity you had.
           </p>
         </div>
 

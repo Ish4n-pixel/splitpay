@@ -672,7 +672,7 @@ export default function HostBillSetupPage() {
                   type="text"
                   value={ch.label}
                   onChange={(e) => updateCharge(idx, { label: e.target.value })}
-                  placeholder="e.g. GST, Service Charge, Discount"
+                  placeholder="Fee or tax name"
                   className="flex-1 px-3 py-1.5 rounded-xl bg-white border border-slate-200 font-semibold text-slate-800 text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500"
                 />
 
@@ -939,12 +939,7 @@ export default function HostBillSetupPage() {
 
             <textarea
               rows={8}
-              placeholder={`Paste receipt text here, e.g.:
-1 Paneer Tikka 240.00
-2 Garlic Naan 180.00
-Dal Makhani 350.00
-GST 5% 38.50
-Grand Total 808.50`}
+              placeholder="Paste receipt text here..."
               value={pasteText}
               onChange={(e) => setPasteText(e.target.value)}
               className="w-full p-3.5 rounded-xl border border-slate-200 text-xs font-mono text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50/50"

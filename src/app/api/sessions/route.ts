@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (!hostUpiVpa || !hostUpiVpa.includes('@')) {
-      return NextResponse.json({ error: 'Valid UPI ID (VPA) is required (e.g. name@bank)' }, { status: 400 });
+      return NextResponse.json({ error: 'Valid UPI ID (VPA) is required (name@bank)' }, { status: 400 });
     }
 
     const result = sessionService.createSession({
