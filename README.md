@@ -4,6 +4,8 @@
 
 SplitPay is a real-time group dining and bill-settlement web application designed to eliminate the awkwardness and mathematical chaos of dining in large groups. Instead of forcing waitstaff to split cards or forcing one person to front a massive bill and chase friends for payment, SplitPay digitizes the receipt, calculates individual shares down to the paise, collects payments into a centralized pool via dynamic UPI QR codes, and ensures the venue receives a single accurate settlement.
 
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/Ish4n-pixel/splitpay)
+
 ---
 
 ## Features
