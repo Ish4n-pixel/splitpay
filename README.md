@@ -2,14 +2,9 @@
 
 > **Smart group dining, fair itemized splits, one seamless payment.**
 
-[![Live Demo](https://img.shields.io/badge/Live%20Demo-splitpay--4aut.onrender.com-00c853?style=for-the-badge&logo=render&logoColor=white)](https://splitpay-4aut.onrender.com/)
-[![Status](https://img.shields.io/badge/Deployment-Live%20on%20Render-brightgreen?style=for-the-badge)](https://splitpay-4aut.onrender.com/)
-
-🌐 **Live Application:** [https://splitpay-4aut.onrender.com](https://splitpay-4aut.onrender.com/)
-
 SplitPay is a real-time group dining and bill-settlement web application designed to eliminate the awkwardness and mathematical chaos of dining in large groups. Instead of forcing waitstaff to split cards or forcing one person to front a massive bill and chase friends for payment, SplitPay digitizes the receipt, calculates individual shares down to the paise, collects payments into a centralized pool via dynamic UPI QR codes, and ensures the venue receives a single accurate settlement.
 
-[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/Ish4n-pixel/splitpay)
+**Live Application:** [https://splitpay-4aut.onrender.com](https://splitpay-4aut.onrender.com)
 
 ---
 
@@ -72,32 +67,26 @@ Open `http://localhost:3000` (or the network IP shown in your terminal for phone
 
 ---
 
-## 🐳 Docker & Cloud Deployment
+## Deployment
 
-### Run with Docker Compose
+SplitPay is containerized with Docker and deployed with continuous integration:
+
+### Production Environment
+- **Live URL:** [https://splitpay-4aut.onrender.com](https://splitpay-4aut.onrender.com)
+- **Container Runtime:** Docker on a Linux web service (Singapore region for low latency).
+- **Automated CI/CD:** Connected directly to this repository's `main` branch. Any commit pushed to `main` automatically triggers a fresh Docker build and rolling deploy.
+- **Server Architecture:** Unified HTTP server running Next.js 14 request handling alongside Socket.IO WebSockets on port `3000`.
+- **Database:** SQLite (`better-sqlite3`) with WAL journal mode enabled and configurable storage path via `DATA_DIR`.
+
+### Running Locally with Docker Compose
+
+To build and run the production container locally:
 
 ```bash
 docker compose up -d --build
 ```
 
-The database is persisted in a local Docker volume named `splitpay_data` mounted at `/app/data`.
-
-### Deploying to Cloud (Render / Railway / Fly.io)
-
-1. **Render.com:**
-   - Create a new **Web Service** connected to your repository.
-   - Environment: **Docker**
-   - Under **Disks**, add a Persistent Disk with mount path `/app/data`.
-   - Set environment variable: `PORT=3000`.
-
-2. **Railway.app:**
-   - Deploy from GitHub repo (automatically detects [`Dockerfile`](./Dockerfile)).
-   - Add a Volume mounted at `/app/data`.
-
-3. **Cloudflare Tunnel (Instant Mobile Testing):**
-   ```bash
-   npx cloudflared tunnel --url http://localhost:3000
-   ```
+This launches the container with a local Docker volume (`splitpay_data`) mounted to `/app/data`.
 
 ---
 
