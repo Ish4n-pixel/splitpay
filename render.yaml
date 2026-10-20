@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: splitpay
+    env: docker
+    plan: starter
+    region: singapore
+    dockerfilePath: Dockerfile
+    disk:
+      name: splitpay_data
+      mountPath: /app/data
+      sizeGB: 1
+    envVars:
+      - key: PORT
+        value: 3000
+      - key: NODE_ENV
+        value: production
+      - key: DATA_DIR
+        value: /app/data
