@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { extractReceiptWithGemini } from '@/lib/ocr/gemini';
+import { extractReceiptWithGemini, getDefaultGeminiKey } from '@/lib/ocr/gemini';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
   return NextResponse.json({
-    hasServerKey: Boolean(process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY.trim().length > 0),
+    hasServerKey: Boolean(getDefaultGeminiKey()),
   });
 }
 
@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing image payload' }, { status: 400 });
     }
 
-    const apiKey = userApiKey || process.env.GEMINI_API_KEY;
+    const apiKey = userApiKey || getDefaultGeminiKey();
     if (!apiKey) {
       return NextResponse.json(
         {
