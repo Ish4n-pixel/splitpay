@@ -6,19 +6,19 @@ SplitPay is a real-time group dining and bill-settlement web application designe
 
 ---
 
-## ✨ Features
+## Features
 
-- **📸 Receipt OCR & Ingestion:** Snap a receipt photo with your smartphone camera or file upload (powered by client-side Tesseract.js with auto-contrast filtering) or enter dishes manually via a fast entry form.
-- **🍗 Portion-Based Dish Claiming:** Claim exact portions of grouped dishes (e.g. claim 1 out of 3 Chicken Tikkas) rather than being forced to take all 3. Pay strictly for what you ate.
-- **🔒 Claim Locking Protection:** Dishes or portions already claimed by earlier diners are automatically locked to prevent latecomers from over-claiming or claiming someone else's food.
-- **⚖️ Fair Proportional Fee Allocation:** Taxes, GST, tips, and service charges are distributed proportionally to each person's food spend so lighter eaters never subsidize heavy eaters. Flat equal division is also available with a single toggle.
-- **💰 Flexible Tax & Tip Modes:** Add GST, service charges, or tips as either percentage (`%`) or fixed rupee amount (`₹ Fixed`).
-- **👑 Host Self-Dish Verification:** Hosts can claim their own dishes directly from the Host Dashboard with 1-click quick-claim buttons. Host-claimed items automatically advance the settled progress bar.
-- **🪙 Zero-Penny Invariant Precision:** 100% of arithmetic is computed in integer paise using the **Largest-Remainder (Hamilton-Hare)** method, guaranteeing mathematical zero-discrepancy down to the penny.
-- **📱 Zero App Installation Friction:** Guests scan a table QR code or open a short link in their mobile browser—no downloads, logins, or app store installs required.
-- **⚡ Real-Time Live Sync:** Powered by Socket.IO, the entire table updates simultaneously as diners claim items, log cash, or make payments.
-- **📲 Dynamic UPI Settlement:** Generates individual UPI QR codes mapped to the host's UPI ID (`upi://pay?pa=...`), pre-filled with each diner's exact amount due.
-- **🤝 Mixed Payment Support:** Real-time cash logging ("Paid Cash") and 1-tap proxy covers ("A covers B").
+- **Receipt OCR & Ingestion:** Snap a receipt photo with your smartphone camera or file upload (powered by client-side Tesseract.js with auto-contrast filtering) or enter dishes manually via a fast entry form.
+- **Portion-Based Dish Claiming:** Claim exact portions of grouped dishes (e.g. claim 1 out of 3 Chicken Tikkas) rather than being forced to take all 3. Pay strictly for what you ate.
+- **Claim Locking Protection:** Dishes or portions already claimed by earlier diners are automatically locked to prevent latecomers from over-claiming or claiming someone else's food.
+- **Fair Proportional Fee Allocation:** Taxes, GST, tips, and service charges are distributed proportionally to each person's food spend so lighter eaters never subsidize heavy eaters. Flat equal division is also available with a single toggle.
+- **Flexible Tax & Tip Modes:** Add GST, service charges, or tips as either percentage (`%`) or fixed rupee amount (`₹ Fixed`).
+- **Host Self-Dish Verification:** Hosts can claim their own dishes directly from the Host Dashboard with 1-click quick-claim buttons. Host-claimed items automatically advance the settled progress bar.
+- **Zero-Penny Invariant Precision:** 100% of arithmetic is computed in integer paise using the **Largest-Remainder (Hamilton-Hare)** method, guaranteeing mathematical zero-discrepancy down to the penny.
+- **Zero App Installation Friction:** Guests scan a table QR code or open a short link in their mobile browser—no downloads, logins, or app store installs required.
+- **Real-Time Live Sync:** Powered by Socket.IO, the entire table updates simultaneously as diners claim items, log cash, or make payments.
+- **Dynamic UPI Settlement:** Generates individual UPI QR codes mapped to the host's UPI ID (`upi://pay?pa=...`), pre-filled with each diner's exact amount due.
+- **Mixed Payment Support:** Real-time cash logging ("Paid Cash") and 1-tap proxy covers ("A covers B").
 
 ---
 
