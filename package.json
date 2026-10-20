@@ -1,0 +1,39 @@
+{
+  "name": "splitpay",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "export PATH=\"/home/ishan/.local/node/bin:$PATH\" && tsx watch server.ts",
+    "build": "export PATH=\"/home/ishan/.local/node/bin:$PATH\" && next build",
+    "start": "export PATH=\"/home/ishan/.local/node/bin:$PATH\" && NODE_ENV=production tsx server.ts",
+    "test": "export PATH=\"/home/ishan/.local/node/bin:$PATH\" && vitest run",
+    "test:watch": "export PATH=\"/home/ishan/.local/node/bin:$PATH\" && vitest"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.5.0",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.453.0",
+    "nanoid": "^3.3.7",
+    "next": "14.2.15",
+    "qrcode": "^1.5.4",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "socket.io": "^4.8.0",
+    "socket.io-client": "^4.8.0",
+    "tailwind-merge": "^2.5.4",
+    "tesseract.js": "^5.1.1"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.11",
+    "@types/node": "^20.17.0",
+    "@types/qrcode": "^1.5.5",
+    "@types/react": "^18.3.11",
+    "@types/react-dom": "^18.3.1",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.47",
+    "tailwindcss": "^3.4.14",
+    "tsx": "^4.19.1",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.3"
+  }
+}

@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  splitpay:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: splitpay-app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - DATA_DIR=/app/data
+    volumes:
+      - splitpay_data:/app/data
+
+volumes:
+  splitpay_data:
+    driver: local

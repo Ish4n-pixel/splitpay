@@ -1,0 +1,7 @@
+node_modules
+.next
+data
+*.log
+.git
+.gitignore
+test-e2e.ts
