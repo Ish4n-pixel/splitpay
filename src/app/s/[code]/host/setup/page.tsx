@@ -14,6 +14,7 @@ import {
   Loader2,
   Receipt,
   RotateCcw,
+  Key,
 } from 'lucide-react';
 import { parseReceipt, ParsedItem, ParsedCharge } from '@/lib/ocr/parseReceipt';
 import { recognizeReceipt, OcrProgress } from '@/lib/ocr/recognize';
@@ -32,6 +33,8 @@ export default function HostBillSetupPage() {
   const [ocrLoading, setOcrLoading] = useState(false);
   const [ocrProgress, setOcrProgress] = useState<OcrProgress | null>(null);
   const [ocrError, setOcrError] = useState<string | null>(null);
+  const [geminiApiKey, setGeminiApiKey] = useState<string>('');
+  const [showKeyModal, setShowKeyModal] = useState(false);
 
   // Review table items
   const [items, setItems] = useState<ParsedItem[]>([]);
@@ -46,6 +49,11 @@ export default function HostBillSetupPage() {
     if (key) {
       setHostKey(key);
       setHostKeyInput(key);
+    }
+
+    const savedGeminiKey = localStorage.getItem('splitpay_gemini_key');
+    if (savedGeminiKey) {
+      setGeminiApiKey(savedGeminiKey);
     }
 
     // Preload existing items if editing an existing bill
@@ -121,13 +129,57 @@ export default function HostBillSetupPage() {
 
     setOcrLoading(true);
     setOcrError(null);
+    setOcrProgress({ status: '✨ Initializing Gemini AI Vision...', progress: 0.15 });
 
     try {
+      // 1. Attempt smart extraction via Gemini 1.5 Flash API
+      const formData = new FormData();
+      formData.append('file', file);
+      if (geminiApiKey) {
+        formData.append('apiKey', geminiApiKey);
+      }
+
+      setOcrProgress({ status: '✨ Extracting dishes, prices & GST with Gemini 1.5 Flash...', progress: 0.45 });
+
+      const res = await fetch('/api/receipt/extract', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const resData = await res.json();
+
+      if (res.ok && resData.success && resData.data?.items?.length > 0) {
+        const parsed = resData.data;
+        setItems(
+          parsed.items.map((i: any) => ({
+            ...i,
+            rawPrice: (i.unitPricePaise / 100).toFixed(2),
+          }))
+        );
+        setCharges(
+          parsed.charges.map((c: any) => ({
+            ...c,
+            rawValue: c.basis === 'percent' ? String(c.value) : (c.value / 100).toFixed(2),
+          }))
+        );
+        if (parsed.printedTotalPaise > 0) {
+          setPrintedTotalRupees((parsed.printedTotalPaise / 100).toFixed(2));
+        }
+        setOcrProgress({ status: '✨ Successfully parsed with Gemini AI!', progress: 1.0 });
+        return;
+      }
+
+      // 2. If Gemini returned error or not configured, fall back to client-side Tesseract OCR
+      console.warn('Gemini extraction unavailable, falling back to local OCR:', resData?.message || resData?.error);
+      setOcrProgress({ status: 'Scanning receipt lines with local OCR...', progress: 0.6 });
+
       const text = await recognizeReceipt(file, (p) => setOcrProgress(p));
       const parsed = parseReceipt(text);
 
       if (parsed.items.length === 0) {
-        setOcrError('No items could be clearly identified. You can add items manually below or try another image.');
+        setOcrError(
+          resData?.message || 'No items could be clearly identified. You can add items manually below or try another image.'
+        );
       } else {
         setItems(
           parsed.items.map((i) => ({
@@ -147,10 +199,33 @@ export default function HostBillSetupPage() {
       }
     } catch (err: any) {
       console.error('OCR Error:', err);
+      try {
+        setOcrProgress({ status: 'Falling back to local OCR...', progress: 0.6 });
+        const text = await recognizeReceipt(file, (p) => setOcrProgress(p));
+        const parsed = parseReceipt(text);
+        if (parsed.items.length > 0) {
+          setItems(
+            parsed.items.map((i) => ({
+              ...i,
+              rawPrice: (i.unitPricePaise / 100).toFixed(2),
+            }))
+          );
+          setCharges(
+            parsed.charges.map((c) => ({
+              ...c,
+              rawValue: c.basis === 'percent' ? String(c.value) : (c.value / 100).toFixed(2),
+            }))
+          );
+          if (parsed.printedTotalPaise > 0) {
+            setPrintedTotalRupees((parsed.printedTotalPaise / 100).toFixed(2));
+          }
+          return;
+        }
+      } catch {}
       setOcrError(err.message || 'Failed to read receipt image');
     } finally {
       setOcrLoading(false);
-      setOcrProgress(null);
+      setTimeout(() => setOcrProgress(null), 1200);
     }
   };
 
@@ -342,11 +417,16 @@ export default function HostBillSetupPage() {
             <div className="h-12 w-12 rounded-2xl bg-emerald-500 text-white flex items-center justify-center shadow-md shadow-emerald-500/20 group-hover:scale-105 transition-transform mb-3">
               <Camera className="w-6 h-6" />
             </div>
-            <span className="font-bold text-sm text-slate-900">
-              Snap Receipt Photo or Upload
-            </span>
+            <div className="flex items-center gap-1.5 justify-center">
+              <span className="font-bold text-sm text-slate-900">
+                Snap Receipt Photo or Upload
+              </span>
+              <span className="text-[10px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-300">
+                ✨ Gemini AI
+              </span>
+            </div>
             <span className="text-xs text-slate-500 mt-1">
-              Supports paper receipts & invoices (Tesseract OCR)
+              Extracts dishes, quantities & GST with Gemini 1.5 Flash
             </span>
           </label>
 
@@ -367,6 +447,22 @@ export default function HostBillSetupPage() {
               Add individual dishes and prices row by row below
             </span>
           </div>
+        </div>
+
+        {/* AI Info Bar & Key Settings */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between text-xs text-slate-500 gap-2 px-1">
+          <span className="flex items-center gap-1.5">
+            <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+            <span>Smart Vision: <strong>Gemini 1.5 Flash</strong> (with offline fallback)</span>
+          </span>
+          <button
+            type="button"
+            onClick={() => setShowKeyModal(true)}
+            className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-600 hover:text-emerald-700 underline underline-offset-2 transition-colors self-start sm:self-auto"
+          >
+            <Key className="w-3 h-3 text-slate-400" />
+            {geminiApiKey ? 'Custom Gemini Key Set ✓' : 'Custom Gemini API Key (Optional)'}
+          </button>
         </div>
 
         {/* OCR Progress / Status */}
@@ -730,6 +826,67 @@ export default function HostBillSetupPage() {
           </button>
         </div>
       </div>
+
+      {/* Gemini API Key Modal */}
+      {showKeyModal && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl border border-slate-100 space-y-4">
+            <div className="space-y-1">
+              <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                <Key className="w-4 h-4 text-emerald-600" />
+                Gemini 1.5 Flash API Key
+              </h3>
+              <p className="text-xs text-slate-500">
+                SplitPay uses Google Gemini 1.5 Flash for high-accuracy receipt extraction. You can paste your free Google AI Studio key below or leave it blank to use the server default.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-slate-700 block">
+                Google AI Studio API Key:
+              </label>
+              <input
+                type="password"
+                placeholder="AIzaSy..."
+                value={geminiApiKey}
+                onChange={(e) => setGeminiApiKey(e.target.value.trim())}
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-mono text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              />
+              <p className="text-[11px] text-slate-400">
+                Stored safely in your device browser's localStorage.
+              </p>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setGeminiApiKey('');
+                  localStorage.removeItem('splitpay_gemini_key');
+                  setShowKeyModal(false);
+                }}
+                className="px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors"
+              >
+                Clear / Use Server Key
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (geminiApiKey) {
+                    localStorage.setItem('splitpay_gemini_key', geminiApiKey);
+                  } else {
+                    localStorage.removeItem('splitpay_gemini_key');
+                  }
+                  setShowKeyModal(false);
+                }}
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition-colors"
+              >
+                Save Key
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

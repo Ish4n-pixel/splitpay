@@ -10,6 +10,7 @@
     "test:watch": "export PATH=\"/home/ishan/.local/node/bin:$PATH\" && vitest"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "better-sqlite3": "^11.5.0",
     "clsx": "^2.1.1",
     "lucide-react": "^0.453.0",

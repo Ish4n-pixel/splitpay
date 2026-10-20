@@ -10,7 +10,7 @@ SplitPay is a real-time group dining and bill-settlement web application designe
 
 ## Features
 
-- **Receipt OCR & Ingestion:** Snap a receipt photo with your smartphone camera or file upload (powered by client-side Tesseract.js with auto-contrast filtering) or enter dishes manually via a fast entry form.
+- **AI Vision Receipt Ingestion:** Snap a receipt photo with your smartphone camera or file upload powered by **Google Gemini 1.5 Flash** for high-accuracy structured dish, price, and tax extraction, with offline Tesseract OCR fallback and manual entry support.
 - **Portion-Based Dish Claiming:** Claim exact portions of grouped dishes (e.g. claim 1 out of 3 Chicken Tikkas) rather than being forced to take all 3. Pay strictly for what you ate.
 - **Claim Locking Protection:** Dishes or portions already claimed by earlier diners are automatically locked to prevent latecomers from over-claiming or claiming someone else's food.
 - **Fair Proportional Fee Allocation:** Taxes, GST, tips, and service charges are distributed proportionally to each person's food spend so lighter eaters never subsidize heavy eaters. Flat equal division is also available with a single toggle.
@@ -31,8 +31,8 @@ SplitPay is a real-time group dining and bill-settlement web application designe
 - **Styling:** Tailwind CSS + Lucide Icons
 - **Real-Time Synchronization:** Socket.IO
 - **Database:** SQLite (`better-sqlite3`) with WAL mode
-- **OCR Engine:** Tesseract.js
-- **Testing:** Vitest (22 automated unit & invariant tests) + End-to-End simulation script
+- **AI Vision & OCR Engine:** Google Gemini 1.5 Flash (`@google/generative-ai`) + Tesseract.js fallback
+- **Testing:** Vitest (23 automated unit & invariant tests) + End-to-End simulation script
 
 ---
 
