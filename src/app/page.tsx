@@ -1,8 +1,17 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Users, Receipt, QrCode, ArrowRight, ShieldCheck, Sparkles, CheckCircle2 } from 'lucide-react';
+import { Users, Receipt, QrCode, ArrowRight, ShieldCheck, Sparkles, CheckCircle2, History, X } from 'lucide-react';
+import {
+  getUserProfile,
+  saveUserProfile,
+  getRecentTables,
+  saveRecentTable,
+  removeRecentTable,
+  clearRecentTables,
+  RecentTable,
+} from '@/lib/cookies';
 
 export default function HomePage() {
   const router = useRouter();
@@ -21,6 +30,39 @@ export default function HomePage() {
   const [guestName, setGuestName] = useState('');
   const [isJoining, setIsJoining] = useState(false);
   const [joinError, setJoinError] = useState('');
+
+  // Cookies & Recent tables
+  const [recentTables, setRecentTables] = useState<RecentTable[]>([]);
+  const [hasAutoFilled, setHasAutoFilled] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      // Check PWA action shortcut query
+      const urlParams = new URLSearchParams(window.location.search);
+      const action = urlParams.get('action');
+      if (action === 'join') setMode('join');
+      if (action === 'create') setMode('create');
+
+      // Pre-fill from cookies for regular users
+      const profile = getUserProfile();
+      let filled = false;
+      if (profile.name) {
+        setHostName(profile.name);
+        setGuestName(profile.name);
+        filled = true;
+      }
+      if (profile.upiVpa) {
+        setHostUpiVpa(profile.upiVpa);
+        filled = true;
+      }
+      if (profile.feeMode) {
+        setFeeMode(profile.feeMode);
+      }
+      if (filled) setHasAutoFilled(true);
+
+      setRecentTables(getRecentTables());
+    }
+  }, []);
 
   const handleCreateSession = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,6 +92,20 @@ export default function HomePage() {
 
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to create table');
+
+      // Save user details & session to cookies for convenient future visits
+      saveUserProfile({
+        name: hostName.trim(),
+        upiVpa: hostUpiVpa.trim(),
+        feeMode,
+      });
+
+      saveRecentTable({
+        code: data.code,
+        title: tableTitle.trim() || `${hostName.trim()}'s Table`,
+        role: 'host',
+        hostName: hostName.trim(),
+      });
 
       // Store host credentials in localStorage
       localStorage.setItem(`splitpay_host_key_${data.code}`, data.hostKey);
@@ -93,6 +149,13 @@ export default function HomePage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to join table');
 
+      // Save guest name to cookies
+      saveUserProfile({ name: guestName.trim() });
+      saveRecentTable({
+        code: cleanCode,
+        role: 'diner',
+      });
+
       localStorage.setItem(`splitpay_participant_${cleanCode}`, JSON.stringify({
         id: data.participantId,
         token: data.token,
@@ -127,8 +190,111 @@ export default function HomePage() {
         </p>
       </section>
 
+      {/* Recent Dining Tables (Cookie Saved) */}
+      {recentTables.length > 0 && (
+        <div className="max-w-md mx-auto bg-gradient-to-br from-emerald-50/80 via-white to-teal-50/40 rounded-3xl p-5 border border-emerald-100 shadow-sm space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded-lg bg-emerald-600 text-white flex items-center justify-center">
+                <History className="w-3.5 h-3.5" />
+              </div>
+              <div>
+                <h2 className="text-xs font-extrabold uppercase tracking-wider text-emerald-950">
+                  Recent Dining Tables
+                </h2>
+                <p className="text-[10px] text-slate-500">Auto-saved on this device</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                clearRecentTables();
+                setRecentTables([]);
+              }}
+              className="text-[10px] text-slate-400 hover:text-rose-600 transition-colors font-semibold"
+            >
+              Clear
+            </button>
+          </div>
+
+          <div className="space-y-2">
+            {recentTables.map((t) => (
+              <div
+                key={t.code}
+                className="flex items-center justify-between p-3 rounded-2xl bg-white border border-emerald-100/80 shadow-2xs hover:border-emerald-300 transition-all"
+              >
+                <div className="flex flex-col min-w-0 pr-2">
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-mono text-xs font-black text-emerald-800 bg-emerald-100/70 px-1.5 py-0.5 rounded">
+                      {t.code}
+                    </span>
+                    <span className="text-xs font-bold text-slate-800 truncate">
+                      {t.title || `${t.code} Dining`}
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-slate-500 mt-1 flex items-center gap-1">
+                    {t.role === 'host' ? (
+                      <span className="text-amber-700 font-bold bg-amber-50 px-1 rounded">👑 Host</span>
+                    ) : (
+                      <span className="text-blue-700 font-bold bg-blue-50 px-1 rounded">🍽️ Diner</span>
+                    )}
+                    <span>• 1-click resume</span>
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      router.push(t.role === 'host' ? `/s/${t.code}/host` : `/s/${t.code}`);
+                    }}
+                    className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1 shadow-xs transition-colors"
+                  >
+                    Resume
+                    <ArrowRight className="w-3 h-3" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      removeRecentTable(t.code);
+                      setRecentTables(getRecentTables());
+                    }}
+                    className="p-1.5 rounded-lg text-slate-300 hover:text-rose-500 hover:bg-rose-50 transition-colors"
+                    title="Remove from history"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Main Interactive Card */}
       <div className="max-w-md mx-auto bg-white rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-100 p-6 sm:p-8">
+        {/* Cookie auto-fill badge */}
+        {hasAutoFilled && (
+          <div className="mb-4 px-3 py-1.5 rounded-xl bg-emerald-50/80 border border-emerald-200/60 flex items-center justify-between text-[11px] text-emerald-800">
+            <span className="flex items-center gap-1.5 font-medium">
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+              Profile auto-filled from your saved cookies
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                setHostName('');
+                setHostUpiVpa('');
+                setGuestName('');
+                setHasAutoFilled(false);
+              }}
+              className="text-[10px] text-slate-400 hover:text-slate-600 font-semibold underline ml-1"
+            >
+              Reset
+            </button>
+          </div>
+        )}
+
         {/* Tab switcher */}
         <div className="flex p-1 bg-slate-100 rounded-2xl mb-6">
           <button

@@ -1,0 +1,54 @@
+{
+  "name": "SplitPay — Smart Dining & Fair Bill Splits",
+  "short_name": "SplitPay",
+  "description": "Smart group dining, fair itemized splits, one seamless payment.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#ffffff",
+  "theme_color": "#059669",
+  "categories": ["finance", "utilities", "food"],
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icons/icon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Host New Table",
+      "short_name": "Host Table",
+      "description": "Start a new dining table as host",
+      "url": "/?action=create",
+      "icons": [{ "src": "/icons/shortcut-host.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "Join Table",
+      "short_name": "Join Table",
+      "description": "Join an existing dining table with a code",
+      "url": "/?action=join",
+      "icons": [{ "src": "/icons/shortcut-join.png", "sizes": "96x96" }]
+    }
+  ]
+}

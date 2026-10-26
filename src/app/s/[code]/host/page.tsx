@@ -25,6 +25,7 @@ import { useSessionSocket } from '@/lib/useSessionSocket';
 import { formatINR, toRupees } from '@/lib/money';
 import { buildUpiUri } from '@/lib/upi';
 import { ChargeKind, ChargeBasis } from '@/lib/split/engine';
+import { saveRecentTable } from '@/lib/cookies';
 
 export default function HostDashboardPage() {
   const params = useParams();
@@ -49,7 +50,22 @@ export default function HostDashboardPage() {
     if (key) {
       setHostKey(key);
     }
+    saveRecentTable({
+      code,
+      role: 'host',
+    });
   }, [code]);
+
+  useEffect(() => {
+    if (snapshot?.session?.title) {
+      saveRecentTable({
+        code,
+        title: snapshot.session.title,
+        hostName: snapshot.session.hostUpiName,
+        role: 'host',
+      });
+    }
+  }, [code, snapshot?.session?.title, snapshot?.session?.hostUpiName]);
 
   if (!snapshot) {
     return (

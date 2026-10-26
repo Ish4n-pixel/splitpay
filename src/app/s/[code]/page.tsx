@@ -20,6 +20,7 @@ import {
 import { useSessionSocket } from '@/lib/useSessionSocket';
 import { formatINR } from '@/lib/money';
 import { buildUpiUri } from '@/lib/upi';
+import { getUserProfile, saveUserProfile, saveRecentTable } from '@/lib/cookies';
 
 export default function GuestDinerPage() {
   const params = useParams();
@@ -40,15 +41,38 @@ export default function GuestDinerPage() {
   const { snapshot, connected, error, actions } = useSessionSocket(code);
 
   useEffect(() => {
+    // Pre-populate name from cookie for returning diners
+    const profile = getUserProfile();
+    if (profile.name && !joinName) {
+      setJoinName(profile.name);
+    }
+
     const stored = localStorage.getItem(`splitpay_participant_${code}`);
     if (stored) {
       try {
-        setCurrentParticipant(JSON.parse(stored));
+        const parsed = JSON.parse(stored);
+        setCurrentParticipant(parsed);
+        saveRecentTable({
+          code,
+          role: parsed.isHost ? 'host' : 'diner',
+        });
       } catch (e) {
         // ignore
       }
     }
   }, [code]);
+
+  // Keep recent table title updated when snapshot loads
+  useEffect(() => {
+    if (snapshot?.session?.title) {
+      saveRecentTable({
+        code,
+        title: snapshot.session.title,
+        hostName: snapshot.session.hostUpiName,
+        role: currentParticipant?.isHost ? 'host' : 'diner',
+      });
+    }
+  }, [code, snapshot?.session?.title, snapshot?.session?.hostUpiName, currentParticipant?.isHost]);
 
   const handleJoin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -69,6 +93,15 @@ export default function GuestDinerPage() {
 
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to join table');
+
+      // Remember diner name & table in cookies
+      saveUserProfile({ name: joinName.trim() });
+      saveRecentTable({
+        code,
+        title: snapshot?.session?.title,
+        hostName: snapshot?.session?.hostUpiName,
+        role: 'diner',
+      });
 
       const participantData = {
         id: data.participantId,

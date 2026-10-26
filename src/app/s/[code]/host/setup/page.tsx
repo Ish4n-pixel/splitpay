@@ -22,6 +22,7 @@ import { recognizeReceipt, OcrProgress } from '@/lib/ocr/recognize';
 import { preprocessReceiptImage } from '@/lib/ocr/preprocess';
 import { formatINR, toPaise, toRupees } from '@/lib/money';
 import { ChargeKind, ChargeBasis } from '@/lib/split/engine';
+import { saveRecentTable } from '@/lib/cookies';
 
 export default function HostBillSetupPage() {
   const params = useParams();
@@ -55,6 +56,11 @@ export default function HostBillSetupPage() {
       setHostKey(key);
       setHostKeyInput(key);
     }
+
+    saveRecentTable({
+      code,
+      role: 'host',
+    });
 
     const savedGeminiKey = localStorage.getItem('splitpay_gemini_key');
     if (savedGeminiKey) {
