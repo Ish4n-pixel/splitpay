@@ -100,15 +100,15 @@ export function PwaWidgetPrompt() {
       </button>
 
       {/* Floating Bottom Banner on Mobile for first-time visitors */}
-      {showBanner && (
-        <div className="fixed bottom-4 left-4 right-4 z-50 max-w-md mx-auto bg-slate-900/95 backdrop-blur-md text-white p-3.5 rounded-2xl shadow-2xl border border-slate-700/50 flex items-center justify-between gap-3 animate-in slide-in-from-bottom duration-300">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-500 flex items-center justify-center font-bold text-base shadow-sm shrink-0">
+      {showBanner && !showModal && (
+        <div className="fixed bottom-4 left-4 right-4 z-40 max-w-md mx-auto bg-slate-900/95 backdrop-blur-md text-white p-3 sm:p-3.5 rounded-2xl shadow-2xl border border-slate-700/50 flex items-center justify-between gap-3 animate-in slide-in-from-bottom duration-300">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-500 flex items-center justify-center font-bold text-sm sm:text-base shadow-sm shrink-0">
               ₹
             </div>
-            <div className="flex flex-col">
-              <span className="text-xs font-bold leading-tight">Install SplitPay Widget</span>
-              <span className="text-[11px] text-slate-400">1-tap access on your home screen</span>
+            <div className="flex flex-col min-w-0">
+              <span className="text-xs font-bold leading-tight truncate">Install SplitPay Widget</span>
+              <span className="text-[10px] sm:text-[11px] text-slate-400 truncate">1-tap access on your home screen</span>
             </div>
           </div>
 
@@ -116,7 +116,7 @@ export function PwaWidgetPrompt() {
             <button
               type="button"
               onClick={handleInstallClick}
-              className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-sm transition-colors"
+              className="px-2.5 sm:px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-sm transition-colors whitespace-nowrap"
             >
               Add Widget
             </button>
@@ -132,13 +132,23 @@ export function PwaWidgetPrompt() {
         </div>
       )}
 
-      {/* Instructional Modal */}
+      {/* Instructional Modal - Protected against top/bottom clipping on mobile viewports */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-slate-100 space-y-5 animate-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-base">
+        <div
+          className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-sm p-3 sm:p-4 flex flex-col justify-start sm:justify-center items-center min-h-[100dvh]"
+          style={{
+            paddingTop: 'max(1rem, env(safe-area-inset-top, 1rem))',
+            paddingBottom: 'max(1rem, env(safe-area-inset-bottom, 1rem))',
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowModal(false);
+          }}
+        >
+          <div className="relative w-full max-w-sm my-auto bg-white rounded-3xl shadow-2xl border border-slate-100 flex flex-col max-h-[calc(100dvh-2.5rem)] overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            {/* Modal Header - Fixed at Top */}
+            <div className="p-4 sm:p-5 pb-3 border-b border-slate-100 flex items-center justify-between shrink-0 bg-white">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-base shrink-0">
                   ₹
                 </div>
                 <div>
@@ -152,104 +162,109 @@ export function PwaWidgetPrompt() {
                 type="button"
                 onClick={() => setShowModal(false)}
                 className="p-1.5 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+                aria-label="Close"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            {isIos ? (
-              /* iOS Safari Instructions */
-              <div className="space-y-3.5 bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                <div className="flex items-start gap-3">
-                  <div className="w-6 h-6 rounded-lg bg-emerald-600 text-white flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
-                    1
+            {/* Modal Body - Scrollable if screen is compact */}
+            <div className="p-4 sm:p-5 overflow-y-auto flex-1 space-y-3.5">
+              {isIos ? (
+                /* iOS Safari Instructions */
+                <div className="space-y-3 bg-slate-50 p-3.5 sm:p-4 rounded-2xl border border-slate-100">
+                  <div className="flex items-start gap-3">
+                    <div className="w-6 h-6 rounded-lg bg-emerald-600 text-white flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
+                      1
+                    </div>
+                    <div className="text-xs text-slate-700 leading-snug">
+                      Tap the <strong className="text-slate-900">Share</strong> icon in the bottom menu bar of Safari:
+                      <div className="mt-1 flex items-center gap-1.5 font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg w-fit border border-emerald-200/50">
+                        <Share2 className="w-3.5 h-3.5" />
+                        <span>Share</span>
+                      </div>
+                    </div>
                   </div>
-                  <div className="text-xs text-slate-700 leading-snug">
-                    Tap the <strong className="text-slate-900">Share</strong> icon in the bottom menu bar of Safari:
-                    <div className="mt-1 flex items-center gap-1.5 font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg w-fit border border-emerald-200/50">
-                      <Share2 className="w-3.5 h-3.5" />
-                      <span>Share</span>
+
+                  <div className="flex items-start gap-3">
+                    <div className="w-6 h-6 rounded-lg bg-emerald-600 text-white flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
+                      2
+                    </div>
+                    <div className="text-xs text-slate-700 leading-snug">
+                      Scroll down and tap:
+                      <div className="mt-1 flex items-center gap-1.5 font-semibold text-slate-800 bg-white px-2.5 py-1 rounded-lg w-fit border border-slate-200 shadow-2xs">
+                        <PlusSquare className="w-3.5 h-3.5 text-slate-600" />
+                        <span>Add to Home Screen</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3">
+                    <div className="w-6 h-6 rounded-lg bg-emerald-600 text-white flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
+                      3
+                    </div>
+                    <div className="text-xs text-slate-700 leading-snug">
+                      Tap <strong className="text-slate-900">Add</strong> in the top right corner. SplitPay will appear directly on your home screen!
                     </div>
                   </div>
                 </div>
-
-                <div className="flex items-start gap-3">
-                  <div className="w-6 h-6 rounded-lg bg-emerald-600 text-white flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
-                    2
+              ) : deferredPrompt ? (
+                /* Android with native prompt ready */
+                <div className="space-y-4 text-center py-1">
+                  <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-100 space-y-2">
+                    <Sparkles className="w-7 h-7 text-emerald-600 mx-auto" />
+                    <p className="text-xs text-slate-700 leading-relaxed font-medium">
+                      Install SplitPay onto your phone&apos;s home screen for instant 1-tap launch, native app performance, and offline bill review.
+                    </p>
                   </div>
-                  <div className="text-xs text-slate-700 leading-snug">
-                    Scroll down and select:
-                    <div className="mt-1 flex items-center gap-1.5 font-semibold text-slate-800 bg-white px-2.5 py-1 rounded-lg w-fit border border-slate-200 shadow-2xs">
-                      <PlusSquare className="w-3.5 h-3.5 text-slate-600" />
-                      <span>Add to Home Screen</span>
+                  <button
+                    type="button"
+                    onClick={handleInstallClick}
+                    className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md transition-colors flex items-center justify-center gap-2"
+                  >
+                    <Download className="w-4 h-4" />
+                    Install Home Screen Widget
+                  </button>
+                </div>
+              ) : (
+                /* Chrome/Android manual guide */
+                <div className="space-y-3 bg-slate-50 p-3.5 sm:p-4 rounded-2xl border border-slate-100">
+                  <div className="flex items-start gap-3">
+                    <div className="w-6 h-6 rounded-lg bg-emerald-600 text-white flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
+                      1
+                    </div>
+                    <div className="text-xs text-slate-700 leading-snug">
+                      Tap the <strong className="text-slate-900">Chrome menu</strong> (three dots ⋮ in top right).
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3">
+                    <div className="w-6 h-6 rounded-lg bg-emerald-600 text-white flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
+                      2
+                    </div>
+                    <div className="text-xs text-slate-700 leading-snug">
+                      Select <strong className="text-slate-900">&quot;Install app&quot;</strong> or <strong className="text-slate-900">&quot;Add to Home screen&quot;</strong>.
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3">
+                    <div className="w-6 h-6 rounded-lg bg-emerald-600 text-white flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
+                      3
+                    </div>
+                    <div className="text-xs text-slate-700 leading-snug">
+                      SplitPay will be placed right on your phone&apos;s home screen like an app widget!
                     </div>
                   </div>
                 </div>
+              )}
+            </div>
 
-                <div className="flex items-start gap-3">
-                  <div className="w-6 h-6 rounded-lg bg-emerald-600 text-white flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
-                    3
-                  </div>
-                  <div className="text-xs text-slate-700 leading-snug">
-                    Tap <strong className="text-slate-900">Add</strong> in the top right corner. SplitPay will appear directly on your home screen!
-                  </div>
-                </div>
-              </div>
-            ) : deferredPrompt ? (
-              /* Android with native prompt ready */
-              <div className="space-y-4 text-center">
-                <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-100 space-y-2">
-                  <Sparkles className="w-8 h-8 text-emerald-600 mx-auto" />
-                  <p className="text-xs text-slate-700 leading-relaxed font-medium">
-                    Install SplitPay onto your home screen for quick launch, native performance, and offline bill review.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={handleInstallClick}
-                  className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md transition-colors flex items-center justify-center gap-2"
-                >
-                  <Download className="w-4 h-4" />
-                  Install Home Screen Widget
-                </button>
-              </div>
-            ) : (
-              /* Chrome/Android manual guide */
-              <div className="space-y-3.5 bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                <div className="flex items-start gap-3">
-                  <div className="w-6 h-6 rounded-lg bg-emerald-600 text-white flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
-                    1
-                  </div>
-                  <div className="text-xs text-slate-700 leading-snug">
-                    Tap the <strong className="text-slate-900">Chrome menu</strong> (three dots ⋮ in top right).
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-3">
-                  <div className="w-6 h-6 rounded-lg bg-emerald-600 text-white flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
-                    2
-                  </div>
-                  <div className="text-xs text-slate-700 leading-snug">
-                    Select <strong className="text-slate-900">"Install app"</strong> or <strong className="text-slate-900">"Add to Home screen"</strong>.
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-3">
-                  <div className="w-6 h-6 rounded-lg bg-emerald-600 text-white flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
-                    3
-                  </div>
-                  <div className="text-xs text-slate-700 leading-snug">
-                    SplitPay will be placed right on your phone&apos;s home screen like an app widget!
-                  </div>
-                </div>
-              </div>
-            )}
-
-            <div className="pt-2 flex justify-end">
+            {/* Modal Footer - Fixed at Bottom */}
+            <div className="p-3 sm:p-4 border-t border-slate-100 bg-slate-50/70 shrink-0 flex justify-end">
               <button
                 type="button"
                 onClick={() => setShowModal(false)}
-                className="w-full py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-colors"
+                className="w-full py-2.5 rounded-xl bg-slate-200/80 hover:bg-slate-300 text-slate-700 text-xs font-bold transition-colors"
               >
                 Got It
               </button>
